@@ -1,0 +1,96 @@
+* {
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+h1, h2 {
+    padding: 0px;
+    margin: 0px;
+}
+
+h1 {
+    font-size: 1.6em;
+}
+
+h2 {
+    font-size: 1.3em;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background: #333;
+    background-image: linear-gradient(to right, #ccc, #333, #ccc);
+}
+
+table td {
+    padding: 2px;
+}
+
+.top-time, .top-speed {
+    background-color: #eba9f4;
+}
+
+.top-sector-time:not(.top-time) {
+    background-color: #9eec9e;
+}
+
+.legend {
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.legend div {
+    width: 200px;
+    display: inline-block;
+    padding: 2px;
+    margin: 0 10px;
+}
+
+#map {
+    height: 100%;
+    width: calc(100% - 800px);
+}
+
+#results {
+    /* background: #9E9E9E; */
+    width: 790px;
+    height: 100%;
+    right: 0;
+    top: 0;
+    position: absolute;
+    padding: 5px;
+    border-left: 5px solid #888;
+}
+
+#results table {
+    font-size: 12px;
+    margin: 10px 0;
+    width: 100%;
+}
+
+#results table td:nth-child(12) {
+    font-weight: bold;
+}
+
+#results table tbody tr:nth-child(even) {
+    background-color: #ccc;
+}
+
+#results table td:nth-child(1), #results table td:nth-child(2) ~ td {
+    text-align: center;
+}
+
+#results table thead {
+    font-weight: bold;
+    background-color: #444;
+    color: white;
+    text-align: center;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #f6f6f6;
+}
