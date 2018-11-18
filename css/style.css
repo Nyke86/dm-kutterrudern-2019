@@ -4,6 +4,7 @@
 
 h1, h2 {
     padding: 0px;
+    padding-top: 10px;
     margin: 0px;
 }
 
@@ -26,12 +27,12 @@ table td {
     padding: 2px;
 }
 
-.top-time, .top-speed {
-    background-color: #eba9f4;
-}
-
-.top-sector-time:not(.top-time) {
-    background-color: #9eec9e;
+.top-time.top-sector-time {
+    background: rgb(158,236,158); /* Old browsers */
+    background: -moz-linear-gradient(-45deg, rgba(158,236,158,1) 0%, rgba(158,236,158,1) 50%, rgba(235,169,244,1) 51%, rgba(235,169,244,1) 100%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(-45deg, rgba(158,236,158,1) 0%,rgba(158,236,158,1) 50%,rgba(235,169,244,1) 51%,rgba(235,169,244,1) 100%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(135deg, rgba(158,236,158,1) 0%,rgba(158,236,158,1) 50%,rgba(235,169,244,1) 51%,rgba(235,169,244,1) 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#9eec9e', endColorstr='#eba9f4',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
 }
 
 .legend {
@@ -53,14 +54,13 @@ table td {
 }
 
 #results {
-    /* background: #9E9E9E; */
     width: 790px;
     height: 100%;
     right: 0;
     top: 0;
     position: absolute;
-    padding: 5px;
-    border-left: 5px solid #888;
+    padding: 0 5px;
+    border-left: 5px solid #333;
 }
 
 #results table {
@@ -81,6 +81,26 @@ table td {
     text-align: center;
 }
 
+table tr.highlight td {
+    background-color: #b3cfe6;
+}
+
+table tr.highlight td {
+    border: 1px solid #5599d5;
+}
+
+table tr td {
+    border: 1px solid transparent;
+}
+
+table tr td.top-time, .top-time, table tr td.top-speed, .top-speed {
+    background-color: #eba9f4;
+}
+
+table tr td.top-sector-time, .top-sector-time {
+    background-color: #9eec9e;
+}
+
 #results table thead {
     font-weight: bold;
     background-color: #444;
@@ -93,4 +113,12 @@ html, body {
     margin: 0;
     padding: 0;
     background: #f6f6f6;
+}
+
+.arrow-down {
+    color: red;
+}
+
+.arrow-up {
+    color: green;
 }
