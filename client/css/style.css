@@ -19,6 +19,7 @@ h2 {
 hr {
     border: 0;
     height: 1px;
+    margin-bottom: 20px;
     background: #333;
     background-image: linear-gradient(to right, #ccc, #333, #ccc);
 }
@@ -90,7 +91,7 @@ table tr.highlight td {
 }
 
 table tr td {
-    border: 1px solid transparent;
+    border: 1px solid #f6f6f6;
 }
 
 table tr td.top-time, .top-time, table tr td.top-speed, .top-speed {
