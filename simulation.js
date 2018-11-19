@@ -12,7 +12,7 @@ module.exports = class Simulator {
         this.session_id = session_id;
 
         // Calculate initial speed (8 - 10 km/h)
-        this.speed = 8 + 2*Math.random();
+        this.speed = Math.round((8 + 2*Math.random()) * 100) / 100;;
 
         this.currentDistance = 0;
         this.currentTime = 0;
@@ -75,7 +75,7 @@ module.exports = class Simulator {
         let newSpeed = this.speed + delta;
 
         if(newSpeed >= 7.5 && newSpeed <= 10.5) {
-            this.speed = newSpeed;
+            this.speed = Math.round(newSpeed * 100) / 100;
         }
     }
 
@@ -104,6 +104,8 @@ module.exports = class Simulator {
         var _this = this;
 
         this._getDB().then(function(dbo) {
+            let avg_speed = (_this.currentDistance / 1000) / (_this.currentTime / 3600);
+
             dbo.collection('race_' + _this.session_id).updateOne(
                 { 
                     team_id: _this.team_id 
@@ -111,9 +113,16 @@ module.exports = class Simulator {
                     $set: { 
                         team_id: _this.team_id,
                         speed: _this.speed,
+                        avg_speed: Math.round(avg_speed * 100) / 100,
                         time: _this.currentTime,
-                        distance: _this.currentDistance,
+                        distance: Math.round(_this.currentDistance),
                         position: _this.currentPosition.geometry.coordinates
+                    },
+                    $push: { 
+                        path: _this.currentPosition.geometry.coordinates 
+                    },
+                    $max: { 
+                        max_speed: _this.speed 
                     }
                 },{
                     upsert : true
@@ -125,7 +134,7 @@ module.exports = class Simulator {
     _update() {
         let newTime = Math.round(Date.now() / 1000) - this._startTime;
         let deltaTime = newTime - this.currentTime;
-        let deltaDistance = Math.round((this.speed * (deltaTime / 3600)) * 1000);
+        let deltaDistance = (this.speed * (deltaTime / 3600)) * 1000;
         
         this.currentTime = newTime;
         this.currentDistance += deltaDistance;
