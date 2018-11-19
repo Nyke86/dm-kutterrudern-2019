@@ -23,19 +23,20 @@ module.exports = class Simulator {
     start(track_distance) {
         var _this = this;
 
+        this.track_distance = track_distance;
+
         if(!track_distance) {
             track_distance = 5000;
         }
 
         this._getTrack(track_distance).then(function(track) {
             _this.track = track;
-            _this.currentPosition = turf.along(_this.track, _this.currentDistance);
-    
-            console.log("NEW1", turf.along(_this.track, 10000));
-            console.log("NEW2", turf.along(_this.track, 6000));
-
+            _this.currentPosition = turf.along(_this.track, _this.currentDistance / 1000);
+            _this.lastPosition = turf.along(_this.track, 99);
 
             _this._startTime = Math.round(Date.now() / 1000);
+
+            _this._persistState();
 
             _this.moveTimer = setInterval(_this._move.bind(_this), 1000);
 
@@ -50,24 +51,18 @@ module.exports = class Simulator {
     }
 
     _getTrack(track_distance) {
+        var _this = this;
+
         var promise = new Promise(
-            function(resolve, reject) {       
-                MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
-                    if (err) throw err;
-
-                    var dbo = db.db("dm_kutterrudern");
-
+            function(resolve, reject) {  
+                _this._getDB().then(function(dbo) {
                     dbo.collection("simulation").findOne({ length: track_distance }, function(err, result) {
                         if (err) throw err;
                                         
                         let track = turf.lineString(result.track);
                     
                         resolve(track)
-
-                        db.close();
                     });
-                    
-                    db.close();
                 });
             }
         );
@@ -84,14 +79,46 @@ module.exports = class Simulator {
         }
     }
 
+    _getDB() {
+        var promise = new Promise(
+            function(resolve, reject) {       
+                MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+                    if (err) throw err;
+
+                    var dbo = db.db("dm_kutterrudern");
+
+                    resolve(dbo)
+                });
+            }
+        );
+
+        return promise;
+    }
+
     _move() {
         this._update();
+        this._persistState();
+    }
 
-        console.log({
-            speed: this.speed,
-            time: this.currentTime,
-            distance: this.currentDistance,
-            position: this.currentPosition
+    _persistState() {
+        var _this = this;
+
+        this._getDB().then(function(dbo) {
+            dbo.collection('race_' + _this.session_id).updateOne(
+                { 
+                    team_id: _this.team_id 
+                },{
+                    $set: { 
+                        team_id: _this.team_id,
+                        speed: _this.speed,
+                        time: _this.currentTime,
+                        distance: _this.currentDistance,
+                        position: _this.currentPosition.geometry.coordinates
+                    }
+                },{
+                    upsert : true
+                }
+              );
         });
     }
 
@@ -103,9 +130,9 @@ module.exports = class Simulator {
         this.currentTime = newTime;
         this.currentDistance += deltaDistance;
 
-        let newPosition = turf.along(this.track, this.currentDistance);
+        let newPosition = turf.along(this.track, this.currentDistance / 1000);
 
-        if( turf.equal(this.currentPosition, newPosition) ) {
+        if( turf.booleanEqual(newPosition, this.lastPosition) ) {
             this.stop();
         } else {
             this.currentPosition = newPosition;
