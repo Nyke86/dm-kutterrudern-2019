@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Deutsche Meisterschaft Kutterrudern 2019</title>
 
-    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+
+    <script src="/socket.io/socket.io.js"></script>
   </head>
   <body>
     <div id="map"></div>
@@ -353,6 +355,22 @@
             activeMarkerIndex =  (activeMarkerIndex + 1) % markerList.length;
         }
 
+        var socket = io();
+        var session_id = 1;
+
+        socket.on('cutter.race.info', function(msg) {
+          console.log(msg);
+        });
+
+        socket.on('cutter.race.feed.split_times', function(msg) {
+          console.log(msg);
+        });
+
+        socket.on('cutter.race.feed.live_data', function(msg) {
+          console.log(msg);
+        });
+
+        socket.emit('cutter.race.init', session_id);
     </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDDdzshFeTbKPh6syJU6JGQ0ETa23POnCg&callback=initMap" async defer></script>
   </body>
