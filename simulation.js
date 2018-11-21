@@ -7,7 +7,13 @@ var turf = require('@turf/turf');
 var url = "mongodb://localhost:27017/";
 
 module.exports = class Simulator {
+    static simulate(distance, category) {
+        // start multiple simulations
+    }
+
     constructor(session_id, team_id) {
+        var _this = this;
+
         this.team_id = team_id;
         this.session_id = session_id;
 
@@ -18,6 +24,19 @@ module.exports = class Simulator {
         this.currentTime = 0;
 
         this.currentPosition = undefined;
+
+        this._getDB().then(function(dbo) {
+            dbo.collection('race_' + _this.session_id).deleteOne({ 
+                team_id: _this.team_id
+            }).then(function() {
+                console.log(_this.session_id, _this.team_id, "READY");
+
+                dbo.collection('race_' + _this.session_id).insertOne({ 
+                    team_id: _this.team_id,
+                    status: "ready"
+                });
+            });
+        });
     }
 
     start(track_distance) {
@@ -34,6 +53,8 @@ module.exports = class Simulator {
             _this.currentPosition = turf.along(_this.track, _this.currentDistance / 1000);
             _this.lastPosition = turf.along(_this.track, 99);
 
+            console.log( turf.length(_this.track) );
+
             _this._startTime = Math.round(Date.now() / 1000);
 
             _this._persistState();
@@ -46,8 +67,24 @@ module.exports = class Simulator {
     }
 
     stop() {
+        var _this = this;
+
         clearInterval(this.adjustSpeedTimer);
         clearInterval(this.moveTimer);
+
+        this._getDB().then(function(dbo) {
+            console.log(_this.session_id, _this.team_id, "FINISHED");
+
+            dbo.collection('race_' + _this.session_id).updateOne(
+                { 
+                    team_id: _this.team_id 
+                },{
+                    $set: { 
+                        status: "finished"
+                    }
+                }
+            );
+        });
     }
 
     _getTrack(track_distance) {
@@ -97,7 +134,6 @@ module.exports = class Simulator {
 
     _move() {
         this._update();
-        this._persistState();
     }
 
     _persistState() {
@@ -116,7 +152,8 @@ module.exports = class Simulator {
                         avg_speed: Math.round(avg_speed * 100) / 100,
                         time: _this.currentTime,
                         distance: Math.round(_this.currentDistance),
-                        position: _this.currentPosition.geometry.coordinates
+                        position: _this.currentPosition.geometry.coordinates,
+                        status: "active"
                     },
                     $push: { 
                         path: _this.currentPosition.geometry.coordinates 
@@ -142,9 +179,13 @@ module.exports = class Simulator {
         let newPosition = turf.along(this.track, this.currentDistance / 1000);
 
         if( turf.booleanEqual(newPosition, this.lastPosition) ) {
+            this._persistState();
+
             this.stop();
         } else {
             this.currentPosition = newPosition;
+
+            this._persistState();
         }
     }
 }
