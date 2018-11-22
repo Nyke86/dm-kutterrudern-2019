@@ -68,9 +68,9 @@
                   <td>{ boat.name }</td>
                   <td>{ boat.distance | integer} m</td>
                   <td>{ boat.time | time}</td>
-                  <td class="top-speed">{ boat.speed | float} km/h</td>
-                  <td><span class="arrow-down">&#x25BC;</span> { boat.avg_speed | float } km/h</td> <!-- <span class="arrow-up">&#x25B2;</span> -->
-                  <td>{ boat.max_speed | float } km/h</td>
+                  <td rv-class="boat.fastest | fastest_class">{ boat.speed | float} km/h</td>
+                  <td rv-class="boat.fastestAvg | fastest_class"><div rv-class="boat.speed_trend_class">{ boat.speed_trend }</div> { boat.avg_speed | float } km/h</td>
+                  <td rv-class="boat.fastestMax | fastest_class">{ boat.max_speed | float } km/h</td>
                 </tr>
             </tbody>
         </table>
@@ -392,6 +392,10 @@
           return "boat_" + value;
         }
 
+        rivets.formatters.fastest_class = function(value) {
+          return value ? "top-speed" : "";
+        }
+
         socket.on('cutter.race.info', function(msg) {
           //console.log(msg);
         });
@@ -402,28 +406,20 @@
 
         socket.on('cutter.race.feed.live_data', function(results) {
           for(var i = 0; i < results.length; i++) {
-            if(results[i].status !== "active")
+            if(results[i].status === "ready")
               continue;
-
-            let team_id = results[i].team_id;
-
-            let index = data.boats.findIndex(x => x.team_id === team_id);
-
-            if( index >= 0 ) {
-              data.boats[index].distance = results[i].distance;
-              data.boats[index].time = results[i].time;
-              data.boats[index].speed = results[i].speed;
-              data.boats[index].avg_speed = results[i].avg_speed;
-              data.boats[index].max_speed = results[i].max_speed;
-            } else {
-              data.boats.push(results[i]);
-            }
-
+            
             let boat_number = results[i].boat_number;
             let marker_index = markerList.findIndex(x => x.boat_number === boat_number);
 
             if(marker_index >= 0) {
               let marker = markerList[marker_index].marker;
+
+              if(results[i].status === "finished") {
+                marker.remove();
+                continue;
+              }
+
               var latlng = new google.maps.LatLng(results[i].position[1], results[i].position[0]);
               marker.setPosition(latlng);
             } else {
@@ -434,7 +430,58 @@
                 map
               );
             }
+
+            let team_id = results[i].team_id;
+            let index = data.boats.findIndex(x => x.team_id === team_id);
+
+            if( index >= 0 ) {
+              data.boats[index].distance = results[i].distance;
+              data.boats[index].time = results[i].time;
+              data.boats[index].speed = results[i].speed;
+              data.boats[index].avg_speed = results[i].avg_speed;
+              data.boats[index].max_speed = results[i].max_speed;
+
+              data.boats[index].speed_trend = results[i].speed > results[i].avg_speed ? "\u25B2" : "\u25BC";
+              data.boats[index].speed_trend_class = results[i].speed > results[i].avg_speed ? "arrow-up" : "arrow-down";
+            } else {
+              data.boats.push(results[i]);
+            }
+
+            data.boats.sort((a,b) => (a.distance > b.distance) ? -1 : 1);
           }
+
+          var highestSpeed = 0;
+          var highestMaxSpeed = 0;
+          var highestAvgSpeed = 0;
+          var fastest_boat = undefined;
+          var fastest_boat_avg = undefined;
+          var fastest_boat_max = undefined;
+
+          data.boats.forEach(function(boat, index) {
+            if(highestSpeed < boat.speed) {
+              highestSpeed = boat.speed;
+              fastest_boat = index;
+            }
+
+            if(highestAvgSpeed < boat.avg_speed) {
+              highestAvgSpeed = boat.avg_speed;
+              fastest_boat_avg = index;
+            }
+
+            if(highestMaxSpeed < boat.max_speed) {
+              highestMaxSpeed = boat.max_speed;
+              fastest_boat_max = index;
+            }
+
+            boat.fastest = false;
+            boat.fastestAvg = false;
+            boat.fastestMax = false;
+          });
+
+          data.boats[fastest_boat].fastest = true;
+          data.boats[fastest_boat_avg].fastestAvg = true;
+          data.boats[fastest_boat_max].fastestMax = true;
+
         });
 
         socket.emit('cutter.race.init', session_id);

@@ -119,8 +119,14 @@ html, body {
 
 .arrow-down {
     color: red;
+    display: inline-block;
+    height: 16px;
+    width: 17px;
 }
 
 .arrow-up {
     color: green;
+    display: inline-block;
+    height: 16px;
+    width: 17px;
 }
