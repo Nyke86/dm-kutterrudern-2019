@@ -7,14 +7,42 @@ var turf = require('@turf/turf');
 var url = "mongodb://localhost:27017/";
 
 module.exports = class Simulator {
-    static simulate(distance, category) {
-        // start multiple simulations
+    static simulate(session_id, distance, category) {
+        var simulators = [];
+        var delay = 0;
+
+        MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+            if (err) throw err;
+
+            var dbo = db.db("dm_kutterrudern");
+
+            dbo.collection("teams")
+               .find({ distance: distance, category: category })
+               .sort({ boat_number: -1 })
+               .toArray(function(err, teams) {
+                if (err) throw err;
+                                
+                for(var i = 0; i < teams.length; i++) {
+                    let team_id = teams[i].team_id;
+
+                    let simulator = new Simulator(session_id, teams[i]);
+
+                    simulators.push(simulator);
+
+                    setTimeout(function(){
+                        simulator.start();
+                    }, delay);
+
+                    delay += 60 * 1000;
+                }
+            });
+        });
     }
 
-    constructor(session_id, team_id) {
+    constructor(session_id, team) {
         var _this = this;
 
-        this.team_id = team_id;
+        this.team = team;
         this.session_id = session_id;
 
         // Calculate initial speed (8 - 10 km/h)
@@ -27,12 +55,12 @@ module.exports = class Simulator {
 
         this._getDB().then(function(dbo) {
             dbo.collection('race_' + _this.session_id).deleteOne({ 
-                team_id: _this.team_id
+                team_id: _this.team.team_id
             }).then(function() {
-                console.log(_this.session_id, _this.team_id, "READY");
+                console.log(_this.session_id, _this.team.team_id, "READY");
 
                 dbo.collection('race_' + _this.session_id).insertOne({ 
-                    team_id: _this.team_id,
+                    team_id: _this.team.team_id,
                     status: "ready"
                 });
             });
@@ -53,7 +81,7 @@ module.exports = class Simulator {
             _this.currentPosition = turf.along(_this.track, _this.currentDistance / 1000);
             _this.lastPosition = turf.along(_this.track, 99);
 
-            console.log( turf.length(_this.track) );
+            //console.log( turf.length(_this.track) );
 
             _this._startTime = Math.round(Date.now() / 1000);
 
@@ -73,11 +101,11 @@ module.exports = class Simulator {
         clearInterval(this.moveTimer);
 
         this._getDB().then(function(dbo) {
-            console.log(_this.session_id, _this.team_id, "FINISHED");
+            console.log(_this.session_id, _this.team.team_id, "FINISHED");
 
             dbo.collection('race_' + _this.session_id).updateOne(
                 { 
-                    team_id: _this.team_id 
+                    team_id: _this.team.team_id 
                 },{
                     $set: { 
                         status: "finished"
@@ -144,10 +172,12 @@ module.exports = class Simulator {
 
             dbo.collection('race_' + _this.session_id).updateOne(
                 { 
-                    team_id: _this.team_id 
+                    team_id: _this.team.team_id 
                 },{
                     $set: { 
-                        team_id: _this.team_id,
+                        team_id: _this.team.team_id,
+                        boat_number: _this.team.boat_number,
+                        name: _this.team.name,
                         speed: _this.speed,
                         avg_speed: Math.round(avg_speed * 100) / 100,
                         time: _this.currentTime,

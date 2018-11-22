@@ -17,35 +17,66 @@ function raceInfo(session_id) {
     };
 }
 
-function getLiveData(session_id, team_id) {
-    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
-        if (err) throw err;
-
-        var dbo = db.db("dm_kutterrudern");
-
-        dbo.collection("race_" + session_id).find({ }).toArray(function(err, result) {
+function getLiveData(session_id) {
+    return new Promise(function(resolve, reject) {
+        MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
             if (err) throw err;
-                      
-            console.log(result);
-        });
 
-        db.close();
+            var dbo = db.db("dm_kutterrudern");
+
+            dbo.collection("race_" + session_id)
+                .find({ 
+                    status: "active"
+                }).project({ 
+                    team_id: 1, 
+                    boat_number: 1,
+                    name: 1,
+                    position: 1,
+                    distance: 1,
+                    time: 1,
+                    speed: 1,
+                    avg_speed: 1,
+                    max_speed: 1
+                })
+                .sort({ 
+                    distance: -1 
+                })
+                .toArray(function(err, result) {
+                    if (err) throw err;
+                        
+                    resolve(result);
+                });
+
+            db.close();
+        });
     });
 }
 
-function getSplitTimes(session_id, team_id) {
-    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
-        if (err) throw err;
-
-        var dbo = db.db("dm_kutterrudern");
-
-        dbo.collection("race_" + session_id).find({ }).toArray(function(err, result) {
+function getSplitTimes(session_id) {
+    return new Promise(function(resolve, reject) {
+        MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
             if (err) throw err;
-                               
-            console.log(result);
+    
+            var dbo = db.db("dm_kutterrudern");
+    
+            dbo.collection("race_" + session_id)
+                .find({ 
+                })
+                .project({ 
+                    team_id: 1, 
+                    split_times: 1
+                })
+                .sort({ 
+                    distance: 1 
+                })
+                .toArray(function(err, result) {
+                    if (err) throw err;
+                        
+                    resolve({});
+                });
+    
+            db.close();
         });
-
-        db.close();
     });
 }
 
@@ -64,8 +95,14 @@ io.on('connection', function(socket){
             "category" : "men"
         });
 
-        socket.emit('cutter.race.feed.split_times', {});
-        socket.emit('cutter.race.feed.live_data', {});
+        getSplitTimes(session_id).then(function(result) {
+            socket.emit('cutter.race.feed.split_times', result);
+
+        });
+
+        getLiveData(session_id).then(function(result) {
+            socket.emit('cutter.race.feed.live_data', result);
+        });
     });
 
     const pipeline = [{
@@ -77,15 +114,10 @@ io.on('connection', function(socket){
 
         var dbo = db.db("dm_kutterrudern");
 
-        const changeStream = dbo.collection("race_1").watch(pipeline);
-
-        console.log("change");
-
+        const changeStream = dbo.collection("race_1").watch({ fullDocument: 'updateLookup' });
         changeStream.on("change", function(change) {
-            console.log(change);
-
-            socket.emit('cutter.race.feed.split_times', change.fullDocument);
-            socket.emit('cutter.race.feed.live_data', change.fullDocument);
+            socket.emit('cutter.race.feed.split_times', [change.fullDocument]);
+            socket.emit('cutter.race.feed.live_data', [change.fullDocument]);
         });
     });
 });

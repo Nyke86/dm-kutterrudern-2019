@@ -8,6 +8,8 @@
     <link rel="stylesheet" type="text/css" href="/css/style.css">
 
     <script src="/socket.io/socket.io.js"></script>
+    <script src="bower_components/rivets/dist/rivets.bundled.min.js"></script>
+    <script src="bower_components/jquery/dist/jquery.min.js"></script>
   </head>
   <body>
     <div id="map"></div>
@@ -45,7 +47,7 @@
         </table>
         <hr/>
         <div class="legend"><div class="top-speed">Höchste Geschwindigkeit</div></div>
-        <table>
+        <table id="live_data">
             <thead>
                 <tr>
                     <td rowspan="2">#</td>
@@ -61,15 +63,15 @@
                 </tr>
             </thead>
             <tbody>
-                <tr class="boat_1"><td>01</td><td>SSC Rathenow</td><td>2.356 m</td><td>00:15:00</td><td>8,32 km/h</td><td class="top-speed"><span class="arrow-down">&#x25BC;</span> 9,86 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_2"><td>02</td><td>SSC Wendisch-Rietz</td><td>2.356 m</td><td>00:15:00</td><td>10,32 km/h</td><td><span class="arrow-up">&#x25B2;</span> 9,84 km/h</td><td class="top-speed">10,96 km/h</td></tr>
-                <tr class="boat_3"><td>03</td><td>SSC Greifswald</td><td>2.356 m</td><td>00:15:00</td><td>9,32 km/h</td><td><span class="arrow-down">&#x25BC;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_4"><td>04</td><td>WSC Halle</td><td>2.356 m</td><td>00:15:00</td><td class="top-speed">10,92 km/h</td><td><span class="arrow-up">&#x25B2;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_5"><td>05</td><td>Anklamer Hanse-Haie</td><td>2.356 m</td><td>00:15:00</td><td>8,32 km/h</td><td><span class="arrow-down">&#x25BC;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_6"><td>06</td><td>Club Maritim Erfurt</td><td>2.356 m</td><td>00:15:00</td><td>9,84 km/h</td><td><span class="circle">&#x25CF;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_7"><td>07</td><td>SSV Sömmerda</td><td>2.356 m</td><td>00:15:00</td><td>10,32 km/h</td><td><span class="arrow-up">&#x25B2;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_8"><td>08</td><td>Bernburger Maritimer Club</td><td>2.356 m</td><td>00:15:00</td><td>10,32 km/h</td><td><span class="arrow-up">&#x25B2;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
-                <tr class="boat_9"><td>09</td><td>Leipziger Seesportclub e.V.</td><td>2.356 m</td><td>00:15:00</td><td>10,32 km/h</td><td><span class="arrow-up">&#x25B2;</span> 9,84 km/h</td><td>10,86 km/h</td></tr>
+                <tr rv-class="boat.team_id | boat_class" rv-each-boat="results.boats">
+                  <td>{ boat.boat_number | pad2 }</td>
+                  <td>{ boat.name }</td>
+                  <td>{ boat.distance | integer} m</td>
+                  <td>{ boat.time | time}</td>
+                  <td class="top-speed">{ boat.speed | float} km/h</td>
+                  <td><span class="arrow-down">&#x25BC;</span> { boat.avg_speed | float } km/h</td> <!-- <span class="arrow-up">&#x25B2;</span> -->
+                  <td>{ boat.max_speed | float } km/h</td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -357,17 +359,68 @@
 
         var socket = io();
         var session_id = 1;
+        var data = {
+          boats: []
+        };
+
+        rivets.bind($('#live_data'), {results: data})
+
+        rivets.formatters.time = function(value){
+          var sec_num = parseInt(value, 10); // don't forget the second param
+          var hours   = Math.floor(sec_num / 3600);
+          var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+          var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+          if (hours   < 10) {hours   = "0"+hours;}
+          if (minutes < 10) {minutes = "0"+minutes;}
+          if (seconds < 10) {seconds = "0"+seconds;}
+
+          return hours+':'+minutes+':'+seconds;
+        }
+
+        rivets.formatters.float = function(value){
+          return Number(value).toLocaleString('de-DE', {minimumFractionDigits: 2});
+        }
+
+        rivets.formatters.integer = function(value) {
+          return Number(value).toLocaleString('de-DE');
+        }
+
+        rivets.formatters.pad2 = function(value) {
+          var s = String(value);
+          while (s.length < 2) {s = "0" + s;}
+          return s;
+        }
+
+        rivets.formatters.boat_class = function(value) {
+          return "boat_" + value;
+        }
 
         socket.on('cutter.race.info', function(msg) {
-          console.log(msg);
+          //console.log(msg);
         });
 
         socket.on('cutter.race.feed.split_times', function(msg) {
-          console.log(msg);
+          //console.log(msg);
         });
 
-        socket.on('cutter.race.feed.live_data', function(msg) {
-          console.log(msg);
+        socket.on('cutter.race.feed.live_data', function(results) {
+          for(var i = 0; i < results.length; i++) {
+            
+            let team_id = results[i].team_id;
+console.log(team_id);
+            let index = data.boats.findIndex(x => x.team_id === team_id);
+
+            if( index >= 0 ) {
+              data.boats[index].distance = results[i].distance;
+              data.boats[index].time = results[i].time;
+              data.boats[index].speed = results[i].speed;
+              data.boats[index].avg_speed = results[i].avg_speed;
+              data.boats[index].max_speed = results[i].max_speed;
+            } else {
+              data.boats.push(results[i]);
+            }
+          }
         });
 
         socket.emit('cutter.race.init', session_id);
