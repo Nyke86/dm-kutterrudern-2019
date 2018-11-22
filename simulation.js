@@ -36,6 +36,8 @@ module.exports = class Simulator {
                     delay += 60 * 1000;
                 }
             });
+
+            db.close();
         });
     }
 
@@ -81,7 +83,7 @@ module.exports = class Simulator {
             _this.currentPosition = turf.along(_this.track, _this.currentDistance / 1000);
             _this.lastPosition = turf.along(_this.track, 99);
 
-            //console.log( turf.length(_this.track) );
+            console.log(_this.session_id, _this.team.team_id, "RACE");
 
             _this._startTime = Math.round(Date.now() / 1000);
 
@@ -112,6 +114,8 @@ module.exports = class Simulator {
                     }
                 }
             );
+            
+            _this.db.close();
         });
     }
 
@@ -145,15 +149,22 @@ module.exports = class Simulator {
     }
 
     _getDB() {
+        var _this = this;
+
         var promise = new Promise(
-            function(resolve, reject) {       
-                MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
-                    if (err) throw err;
-
-                    var dbo = db.db("dm_kutterrudern");
-
-                    resolve(dbo)
-                });
+            function(resolve, reject) {  
+                if(_this.dbo) {
+                    resolve(_this.dbo);
+                } else {
+                    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+                        if (err) throw err;
+    
+                        _this.db = db;
+                        _this.dbo = db.db("dm_kutterrudern");
+    
+                        resolve(_this.dbo);
+                    });
+                }
             }
         );
 

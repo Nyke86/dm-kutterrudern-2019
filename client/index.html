@@ -63,7 +63,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr rv-class="boat.team_id | boat_class" rv-each-boat="results.boats">
+                <tr rv-class="boat.boat_number | boat_class" rv-each-boat="results.boats">
                   <td>{ boat.boat_number | pad2 }</td>
                   <td>{ boat.name }</td>
                   <td>{ boat.distance | integer} m</td>
@@ -75,6 +75,7 @@
             </tbody>
         </table>
     </div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDDdzshFeTbKPh6syJU6JGQ0ETa23POnCg&callback=initMap" async defer></script>
     <script>
         var map;
         var markerList = [];
@@ -307,32 +308,27 @@
               ]
             });
 
-            addMarker({lat: 52.592840, lng: 12.325924}, "5", "Anklamer Hanse-Haie", map);
-            addMarker({lat: 52.594237, lng: 12.321337}, "4", "WSC Halle", map);
-            addMarker({lat: 52.600430, lng: 12.315769}, "3", "SSC Greifswald", map);
-            addMarker({lat: 52.601890, lng: 12.326153}, "2", "SSC Wendisch-Rietz", map);
-            addMarker({lat: 52.604466, lng: 12.328650}, "1", "SSC Rathenow", map);
-
             showInfoWindow();
 
             window.setInterval(showInfoWindow, 5*1000);
         }
 
-        function addMarker(location, team_nr, team_name, map) {
+        function addMarker(location, boat_nr, team_name, map) {
             var marker = new google.maps.Marker({
                 position: location,
-                label: team_nr,
+                label: boat_nr,
                 map: map
             });
 
             markerList.push({
                 marker: marker,
-                boat_number: team_nr,
+                boat_number: boat_nr,
                 name: team_name
             });
         }
 
         function showInfoWindow() {
+            if (markerList.length === 0) return;
             if (activeInfoWindow) { activeInfoWindow.close();}
 
             var highlightedElements = Array.from(document.querySelectorAll(".highlight"));
@@ -406,9 +402,11 @@
 
         socket.on('cutter.race.feed.live_data', function(results) {
           for(var i = 0; i < results.length; i++) {
-            
+            if(results[i].status !== "active")
+              continue;
+
             let team_id = results[i].team_id;
-console.log(team_id);
+
             let index = data.boats.findIndex(x => x.team_id === team_id);
 
             if( index >= 0 ) {
@@ -420,11 +418,26 @@ console.log(team_id);
             } else {
               data.boats.push(results[i]);
             }
+
+            let boat_number = results[i].boat_number;
+            let marker_index = markerList.findIndex(x => x.boat_number === boat_number);
+
+            if(marker_index >= 0) {
+              let marker = markerList[marker_index].marker;
+              var latlng = new google.maps.LatLng(results[i].position[1], results[i].position[0]);
+              marker.setPosition(latlng);
+            } else {
+              addMarker(
+                {lat: results[i].position[1], lng: results[i].position[0]}, 
+                results[i].boat_number, 
+                results[i].name, 
+                map
+              );
+            }
           }
         });
 
         socket.emit('cutter.race.init', session_id);
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDDdzshFeTbKPh6syJU6JGQ0ETa23POnCg&callback=initMap" async defer></script>
   </body>
 </html>

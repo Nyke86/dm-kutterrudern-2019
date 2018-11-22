@@ -36,10 +36,8 @@ function getLiveData(session_id) {
                     time: 1,
                     speed: 1,
                     avg_speed: 1,
-                    max_speed: 1
-                })
-                .sort({ 
-                    distance: -1 
+                    max_speed: 1,
+                    position: 1
                 })
                 .toArray(function(err, result) {
                     if (err) throw err;
@@ -65,9 +63,6 @@ function getSplitTimes(session_id) {
                 .project({ 
                     team_id: 1, 
                     split_times: 1
-                })
-                .sort({ 
-                    distance: 1 
                 })
                 .toArray(function(err, result) {
                     if (err) throw err;
