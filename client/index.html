@@ -14,11 +14,13 @@
   <body>
     <div id="map"></div>
     <div id="results">
-        <h1 class="title">Deutsche Meisterschaft im Kutterrudern 2019</h1>
-        <h2 class="title">5.000 Meter - Männer</h2>
+        <div id="race_info">
+          <h1 class="title">Deutsche Meisterschaft im Kutterrudern 2019</h1>
+          <h2 class="title">{ race_info.distance } Meter - { race_info.category }</h2>
+        </div>
         <hr/>
         <div class="legend"><div class="top-sector-time">Schnellste Sektorzeit</div><div class="top-time">Schnellste Zwischenzeit</div></div>
-        <table>
+        <table id="live_results">
             <thead>
                 <td>#</td>
                 <td>Team</td>
@@ -34,15 +36,20 @@
                 <td>5,0 km</td>
             </thead>
             <tbody>
-                <tr class="boat_1"><td>01</td><td>SSC Rathenow</td><td class="top-sector-time">00:00:00</td><td>00:00:00</td><td class="top-sector-time top-time">00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_2"><td>02</td><td>SSC Wendisch-Rietz</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_3"><td>03</td><td>SSC Greifswald</td><td class="top-time">00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_4"><td>04</td><td>WSC Halle</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_5"><td>05</td><td>Anklamer Hanse-Haie</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_6"><td>06</td><td>Club Maritim Erfurt</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_7"><td>07</td><td>SSV Sömmerda</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_8"><td>08</td><td>Bernburger Maritimer Club</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
-                <tr class="boat_9"><td>09</td><td>Leipziger Seesportclub e.V.</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td><td>00:00:00</td></tr>
+                <tr rv-class="result.boat_number | boat_class" rv-each-result="results.results">
+                  <td>{ result.boat_number | pad2 }</td>
+                  <td>{ result.name }</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td> <!-- class="top-sector-time top-time" -->
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                  <td>00:00:00</td>
+                </tr>
             </tbody>
         </table>
         <hr/>
@@ -356,10 +363,24 @@
         var socket = io();
         var session_id = 1;
         var data = {
-          boats: []
+          info: {},
+          boats: [],
+          results: []
         };
 
-        rivets.bind($('#live_data'), {results: data})
+        rivets.bind($('#live_data'), {results: data});
+        rivets.bind($('#live_results'), {results: data});
+        rivets.bind($('#race_info'), {race_info: data.info});
+
+        rivets.formatters.category = function(value) {
+          if(value === "women") {
+            return "Frauen";
+          } else if(value === "mix") {
+            return "Mix";
+          } else {
+            return "Männer";
+          }
+        };
 
         rivets.formatters.time = function(value){
           var sec_num = parseInt(value, 10); // don't forget the second param
@@ -403,6 +424,31 @@
         socket.on('cutter.race.feed.split_times', function(msg) {
           //console.log(msg);
         });
+
+        socket.on('cutter.race.info', function(results) {
+          data.info.distance = rivets.formatters.integer(results.distance);
+          data.info.category = rivets.formatters.category(results.category);
+        });
+
+        socket.on('cutter.race.feed.split_times', function(results) {
+          console.log(results);
+
+          for(var i = 0; i < results.length; i++) {
+            if(results[i].status === "ready")
+              continue;
+            
+            let team_id = results[i].team_id;
+            let index = data.results.findIndex(x => x.team_id === team_id);
+
+            if( index >= 0 ) {
+              //data.results[index].distance = results[i].distance;
+            } else {
+              data.results.push(results[i]);
+            }
+
+            data.results.sort((a,b) => (a.boat_number > b.boat_number) ? 1 : -1);
+          }
+        });        
 
         socket.on('cutter.race.feed.live_data', function(results) {
           for(var i = 0; i < results.length; i++) {

@@ -59,15 +59,17 @@ function getSplitTimes(session_id) {
     
             dbo.collection("race_" + session_id)
                 .find({ 
+                    status: { $in: ['active', 'finished'] }
                 })
                 .project({ 
                     team_id: 1, 
-                    split_times: 1
+                    boat_number: 1,
+                    name: 1,
                 })
                 .toArray(function(err, result) {
                     if (err) throw err;
                         
-                    resolve({});
+                    resolve(result);
                 });
     
             db.close();
