@@ -65,6 +65,7 @@ function getSplitTimes(session_id) {
                     team_id: 1, 
                     boat_number: 1,
                     name: 1,
+                    split_times: 1
                 })
                 .toArray(function(err, result) {
                     if (err) throw err;

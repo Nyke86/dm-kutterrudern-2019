@@ -9,7 +9,7 @@ var url = "mongodb://localhost:27017/";
 module.exports = class Simulator {
     static simulate(session_id, distance, category) {
         var simulators = [];
-        var delay = 0;
+        var delay = 10 * 1000; // 0
 
         MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
             if (err) throw err;
@@ -17,15 +17,18 @@ module.exports = class Simulator {
             var dbo = db.db("dm_kutterrudern");
 
             dbo.collection("teams")
-               .find({ distance: distance, category: category })
-               .sort({ boat_number: -1 })
+               .find({ 
+                    distance: distance, 
+                    category: category
+                })
+               .sort({ team_id: -1 })
                .toArray(function(err, teams) {
                 if (err) throw err;
                                 
                 for(var i = 0; i < teams.length; i++) {
-                    let team_id = teams[i].team_id;
+                    let avg_speed = teams[i].speed;
 
-                    let simulator = new Simulator(session_id, teams[i]);
+                    let simulator = new Simulator(session_id, teams[i]); //, avg_speed
 
                     simulators.push(simulator);
 
@@ -41,17 +44,20 @@ module.exports = class Simulator {
         });
     }
 
-    constructor(session_id, team) {
+    constructor(session_id, team, speed) {
         var _this = this;
 
         this.team = team;
         this.session_id = session_id;
 
         // Calculate initial speed (8 - 10 km/h)
-        this.speed = Math.round((8 + 2*Math.random()) * 100) / 100;;
+        this.static_speed = speed;
+        this.speed = this.static_speed ? this.static_speed : Math.round((8 + 2*Math.random()) * 100) / 100;;
 
         this.currentDistance = 0;
         this.currentTime = 0;
+        this.splitTimes = [null,null,null,null,null,null,null,null,null,null];
+        this.splitTimeIndex = 0;
 
         this.currentPosition = undefined;
 
@@ -83,7 +89,8 @@ module.exports = class Simulator {
             _this.currentPosition = turf.along(_this.track, _this.currentDistance / 1000);
             _this.lastPosition = turf.along(_this.track, 99);
 
-            console.log(_this.session_id, _this.team.team_id, "RACE");
+            console.log( turf.length(track) ) ;
+            console.log( _this.session_id, _this.team.team_id, "RACE" );
 
             _this._startTime = Math.round(Date.now() / 1000);
 
@@ -114,7 +121,7 @@ module.exports = class Simulator {
                     }
                 }
             );
-            
+
             _this.db.close();
         });
     }
@@ -140,6 +147,10 @@ module.exports = class Simulator {
     }
 
     _adjustSpeed() {
+        if(this.static_speed){
+            return;
+        }
+
         let delta = (Math.random() - 0.5) / 5;
         let newSpeed = this.speed + delta;
 
@@ -194,7 +205,8 @@ module.exports = class Simulator {
                         time: _this.currentTime,
                         distance: Math.round(_this.currentDistance),
                         position: _this.currentPosition.geometry.coordinates,
-                        status: "active"
+                        status: "active",
+                        split_times: _this.splitTimes
                     },
                     $push: { 
                         path: _this.currentPosition.geometry.coordinates 
@@ -214,8 +226,16 @@ module.exports = class Simulator {
         let deltaTime = newTime - this.currentTime;
         let deltaDistance = (this.speed * (deltaTime / 3600)) * 1000;
         
-        this.currentTime = newTime;
         this.currentDistance += deltaDistance;
+
+        if(this.currentDistance > 500*(this.splitTimeIndex+1) ) {
+            this.splitTimes[this.splitTimeIndex] = {};
+            this.splitTimes[this.splitTimeIndex].time = this.currentTime;
+            this.splitTimes[this.splitTimeIndex].sector = (this.splitTimeIndex > 0) ? this.splitTimes[this.splitTimeIndex].time - this.splitTimes[this.splitTimeIndex-1].time : this.splitTimes[this.splitTimeIndex].time;
+            this.splitTimeIndex++;
+        }
+
+        this.currentTime = newTime;
 
         let newPosition = turf.along(this.track, this.currentDistance / 1000);
 

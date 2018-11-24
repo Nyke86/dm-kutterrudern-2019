@@ -38,17 +38,8 @@
             <tbody>
                 <tr rv-class="result.boat_number | boat_class" rv-each-result="results.results">
                   <td>{ result.boat_number | pad2 }</td>
-                  <td>{ result.name }</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td> <!-- class="top-sector-time top-time" -->
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
-                  <td>00:00:00</td>
+                  <td>&nbsp;{ result.place | place } { result.name }</td>
+                  <td rv-data="time | split_time_classes index" rv-each-time="result.split_times">{ time.time | time }<br/><span class="sector_time">({ time.sector | time })</span></td> <!-- class="top-sector-time top-time" -->
                 </tr>
             </tbody>
         </table>
@@ -383,6 +374,10 @@
         };
 
         rivets.formatters.time = function(value){
+          if(value === null || value === undefined) {
+            return "-";
+          }
+
           var sec_num = parseInt(value, 10); // don't forget the second param
           var hours   = Math.floor(sec_num / 3600);
           var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
@@ -417,13 +412,59 @@
           return value ? "top-speed" : "";
         }
 
-        socket.on('cutter.race.info', function(msg) {
-          //console.log(msg);
-        });
+        rivets.formatters.place = function(value) {
+          return String.fromCharCode(9312+ value);
+        }
 
-        socket.on('cutter.race.feed.split_times', function(msg) {
-          //console.log(msg);
-        });
+        rivets.formatters.split_time_classes = function(time, index) {
+          if(time === null) {
+            return "";
+          }
+
+          let fastest = undefined;
+          let fastest_time = 9999999;
+
+          for(var i=0; i < data.results.length; i++) {
+            if( data.results[i].split_times[index] === null) {
+              continue;
+            }
+
+            if( data.results[i].split_times[index].time < fastest_time ) {
+              fastest_time = data.results[i].split_times[index].time;
+              fastest = i;
+            }
+          }
+
+          if(fastest !== undefined) {
+            $("#live_results tbody tr td:nth-child(" + (3 + index) + ")").removeClass("top-time");
+
+            $("#live_results tbody tr:nth-child(" + (1 + fastest) + ") td:nth-child(" + (3 + index) + ")").addClass("top-time");
+          }
+
+          fastest = undefined;
+          fastest_time = 9999999;
+
+          for(var k=0; k < data.results.length; k++) {
+            if( data.results[k].split_times[index] === null) {
+              continue;
+            }
+
+            let sector_time = data.results[k].split_times[index].sector;
+
+            if( sector_time < fastest_time ) {
+              fastest_time = sector_time;
+              fastest = k;
+            }
+          }
+
+          if(fastest !== undefined) {
+            $("#live_results tbody tr td:nth-child(" + (3 + index) + ")").removeClass("top-sector-time");
+
+            $("#live_results tbody tr:nth-child(" + (1 + fastest) + ") td:nth-child(" + (3 + index) + ")").addClass("top-sector-time");
+          }
+
+          return "";
+        }
 
         socket.on('cutter.race.info', function(results) {
           data.info.distance = rivets.formatters.integer(results.distance);
@@ -431,8 +472,6 @@
         });
 
         socket.on('cutter.race.feed.split_times', function(results) {
-          console.log(results);
-
           for(var i = 0; i < results.length; i++) {
             if(results[i].status === "ready")
               continue;
@@ -441,13 +480,45 @@
             let index = data.results.findIndex(x => x.team_id === team_id);
 
             if( index >= 0 ) {
-              //data.results[index].distance = results[i].distance;
+              data.results[index].split_times = results[i].split_times;
             } else {
               data.results.push(results[i]);
             }
-
-            data.results.sort((a,b) => (a.boat_number > b.boat_number) ? 1 : -1);
           }
+
+          var column_index = 0;
+
+          for(var k=9; k >= 0; k--) {
+            let complete_column = data.results.every(function(element) {
+              return element.split_times[k] !== null;
+            });
+
+            if(complete_column) {
+              column_index = k;
+              break;
+            }
+          }
+
+          data.results.sort(function (a, b) {
+            let comp = 0;
+
+            if(a.split_times[column_index] !== null && b.split_times[column_index] === null) {
+              comp = -1;
+            } else if(a.split_times[column_index] === null && b.split_times[column_index] !== null) {
+              comp = 1;
+            } else if( (a.split_times[column_index] === null && b.split_times[column_index] == null) || 
+                        a.split_times[column_index].time === b.split_times[column_index].time ) {
+              comp = 0;
+            } else {
+              comp = a.split_times[column_index].time > b.split_times[column_index].time ? 1 : -1;
+            }
+            
+            return comp;
+          });
+
+          data.results.forEach(function(element, index) {
+              return element.place = index;
+          });
         });        
 
         socket.on('cutter.race.feed.live_data', function(results) {
@@ -524,10 +595,11 @@
             boat.fastestMax = false;
           });
 
-          data.boats[fastest_boat].fastest = true;
-          data.boats[fastest_boat_avg].fastestAvg = true;
-          data.boats[fastest_boat_max].fastestMax = true;
-
+          if(data.boats.length > 0) {
+            data.boats[fastest_boat].fastest = true;
+            data.boats[fastest_boat_avg].fastestAvg = true;
+            data.boats[fastest_boat_max].fastestMax = true;
+          }
         });
 
         socket.emit('cutter.race.init', session_id);

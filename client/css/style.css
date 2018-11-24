@@ -52,11 +52,11 @@ table td {
 
 #map {
     height: 100%;
-    width: calc(100% - 800px);
+    width: calc(100% - 900px);
 }
 
 #results {
-    width: 790px;
+    width: 890px;
     height: 100%;
     right: 0;
     top: 0;
@@ -76,7 +76,7 @@ table td {
 }
 
 #results table tbody tr:nth-child(even) {
-    background-color: #ccc;
+    background-color: #e3e3e3;
 }
 
 #results table td:nth-child(1), #results table td:nth-child(2) ~ td {
@@ -129,4 +129,9 @@ html, body {
     display: inline-block;
     height: 16px;
     width: 17px;
+}
+
+.sector_time {
+    color: #415364;
+    /* font-size: 10px; */
 }
